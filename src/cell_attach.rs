@@ -1,5 +1,6 @@
 use super::gps::{altitude, hdop, latlon, speed, time};
 use super::*;
+use helium_proto::MapperAttach;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellAttach {
@@ -172,6 +173,21 @@ impl From<helium_proto::mapper_cbrs_attach_v1::MapperCbrsAttachCandidate> for At
     }
 }
 
+impl From<CellAttach> for helium_proto::mapper_payload::Message {
+    fn from(cell_attach: CellAttach) -> Self {
+        use helium_proto::{mapper_attach, mapper_payload};
+        mapper_payload::Message::Attach(MapperAttach {
+            version: Some(mapper_attach::Version::AttachV1(cell_attach.into())),
+        })
+    }
+}
+
+impl From<CellAttach> for helium_proto::MapperMsg {
+    fn from(cell_attach: CellAttach) -> Self {
+        mapper_msg_with_payload(cell_attach.into())
+    }
+}
+
 use modular_bitfield_msb::{bitfield, specifiers::*, BitfieldSpecifier};
 
 #[bitfield]
@@ -220,17 +236,6 @@ struct LoraPayload {
 
 pub const RSRP_OFFSET: i32 = 150;
 pub const RSRQ_OFFSET: i32 = 30;
-
-impl CellAttach {
-    pub fn to_proto_serialization(
-        &self,
-    ) -> std::result::Result<Vec<u8>, helium_proto::EncodeError> {
-        let proto = helium_proto::MapperCbrsAttachV1::from(self.clone());
-        let mut buffer = vec![];
-        proto.encode(&mut buffer)?;
-        Ok(buffer)
-    }
-}
 
 #[derive(Debug, Clone, BitfieldSpecifier, PartialEq)]
 #[bits = 3]

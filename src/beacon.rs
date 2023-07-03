@@ -1,6 +1,6 @@
 use super::{
     gps::{altitude, hdop, latlon, speed, time, Gps},
-    Error, Result,
+    mapper_msg_with_payload, Error, Result,
 };
 use modular_bitfield_msb::{bitfield, specifiers::*};
 
@@ -47,6 +47,21 @@ impl From<Beacon> for helium_proto::MapperBeaconV1 {
             gps: Some(beacon.gps.into()),
             signature: beacon.signature,
         }
+    }
+}
+
+impl From<Beacon> for helium_proto::mapper_payload::Message {
+    fn from(beacon: Beacon) -> Self {
+        use helium_proto::{mapper_beacon, mapper_payload, MapperBeacon};
+        mapper_payload::Message::Beacon(MapperBeacon {
+            version: Some(mapper_beacon::Version::BeaconV1(beacon.into())),
+        })
+    }
+}
+
+impl From<Beacon> for helium_proto::MapperMsg {
+    fn from(beacon: Beacon) -> Self {
+        mapper_msg_with_payload(beacon.into())
     }
 }
 

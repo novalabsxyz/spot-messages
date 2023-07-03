@@ -1,4 +1,4 @@
-use super::{Error, Result};
+use super::{mapper_msg_with_payload, Error, Result};
 
 use crate::Gps;
 
@@ -39,6 +39,21 @@ impl TryFrom<helium_proto::MapperCellScanV1> for CellScanResults {
         } else {
             Err(Error::ProtoHasNone("gps"))
         }
+    }
+}
+
+impl From<CellScanResults> for helium_proto::mapper_payload::Message {
+    fn from(scan_results: CellScanResults) -> Self {
+        use helium_proto::{mapper_payload, mapper_scan, MapperScan};
+        mapper_payload::Message::Scan(MapperScan {
+            version: Some(mapper_scan::Version::ScanV1(scan_results.into())),
+        })
+    }
+}
+
+impl From<CellScanResults> for helium_proto::MapperMsg {
+    fn from(scan_results: CellScanResults) -> Self {
+        mapper_msg_with_payload(scan_results.into())
     }
 }
 

@@ -34,3 +34,19 @@ pub enum Error {
     #[error("decimal could not map to float: {decimal}")]
     DecimalCouldNotMapToFloat { decimal: rust_decimal::Decimal },
 }
+
+fn mapper_msg_with_payload(
+    payload: helium_proto::mapper_payload::Message,
+) -> helium_proto::MapperMsg {
+    use helium_proto::{mapper_msg, MapperMsg, MapperMsgV1, MapperPayload};
+    MapperMsg {
+        version: Some(mapper_msg::Version::MsgV1(MapperMsgV1 {
+            pub_key: vec![0; 32],
+            payload: Some(MapperPayload {
+                message: Some(payload),
+            }),
+            signature: vec![0; 64],
+            hotspots: vec![],
+        })),
+    }
+}
