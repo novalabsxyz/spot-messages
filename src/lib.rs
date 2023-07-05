@@ -76,6 +76,8 @@ impl TryFrom<mapper_payload::Message> for Payload {
     }
 }
 
+
+
 impl TryFrom<MapperMsg> for Message {
     type Error = Error;
 
@@ -87,31 +89,35 @@ impl TryFrom<MapperMsg> for Message {
     }
 }
 
-/// This TryFrom implementation will throw an error if:
-///     * the signature is not valid
-///     * certain Vec<u8>'s are not parsable as pubkeys
-///     * the protos are missing fields
-impl TryFrom<helium_proto::MapperMsgV1> for Message {
-    type Error = Error;
 
-    fn try_from(value: helium_proto::MapperMsgV1) -> std::result::Result<Self, Self::Error> {
+impl Message {
+    pub fn try_from_with_signature_verification(value: MapperMsg) -> Result<Self> {
+        match value.version {
+            Some(helium_proto::mapper_msg::Version::MsgV1(msg)) => Self::inner_try_from(msg, true),
+            _ => Err(Error::ProtoHasNone("version")),
+        }
+    }
+
+    /// with_verification flag will verify the signature of the message
+    fn inner_try_from(value: helium_proto::MapperMsgV1, with_verification: bool) -> Result<Self> {
         let payload = value.payload.ok_or(Error::ProtoHasNone("payload"))?;
         let payload = payload.message.ok_or(Error::ProtoHasNone("message"))?;
-
-        let mut payload_bytes = Vec::new();
-        payload.encode(&mut payload_bytes);
         let pubkey = PublicKey::from_bytes(&value.pubkey).map_err(|error| Error::PubkeyParse {
             error,
             bytes: value.pubkey,
         })?;
 
-        pubkey
-            .verify(&payload_bytes, &value.signature)
-            .map_err(|_| Error::SignatureVerification {
-                pubkey: Box::new(pubkey.clone()),
-                msg: payload_bytes,
-                signature: value.signature.clone(),
-            })?;
+        if with_verification {
+            let mut payload_bytes = Vec::new();
+            payload.encode(&mut payload_bytes);
+            pubkey
+                .verify(&payload_bytes, &value.signature)
+                .map_err(|_| Error::SignatureVerification {
+                    pubkey: Box::new(pubkey.clone()),
+                    msg: payload_bytes,
+                    signature: value.signature.clone(),
+                })?;
+        }
 
         let payload = payload.try_into()?;
 
@@ -128,6 +134,19 @@ impl TryFrom<helium_proto::MapperMsgV1> for Message {
                 })
                 .collect::<Result<_>>()?,
         })
+    }
+}
+
+
+
+/// This TryFrom implementation will throw an error if:
+///     * certain Vec<u8>'s are not parsable as pubkeys
+///     * the protos are missing fields
+impl TryFrom<helium_proto::MapperMsgV1> for Message {
+    type Error = Error;
+
+    fn try_from(value: helium_proto::MapperMsgV1) -> std::result::Result<Self, Self::Error> {
+        Self::inner_try_from(value, false)
     }
 }
 
