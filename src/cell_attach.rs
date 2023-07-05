@@ -173,18 +173,29 @@ impl From<helium_proto::mapper_cbrs_attach_v1::MapperCbrsAttachCandidate> for At
     }
 }
 
-impl From<CellAttach> for helium_proto::mapper_payload::Message {
+impl From<CellAttach> for mapper_payload::Message {
     fn from(cell_attach: CellAttach) -> Self {
-        use helium_proto::{mapper_attach, mapper_payload};
+        use helium_proto::mapper_attach;
         mapper_payload::Message::Attach(MapperAttach {
             version: Some(mapper_attach::Version::AttachV1(cell_attach.into())),
         })
     }
 }
 
-impl From<CellAttach> for helium_proto::MapperMsg {
+impl From<CellAttach> for MapperMsg {
     fn from(cell_attach: CellAttach) -> Self {
         mapper_msg_with_payload(cell_attach.into())
+    }
+}
+
+impl TryFrom<MapperAttach> for CellAttach {
+    type Error = Error;
+
+    fn try_from(proto: MapperAttach) -> Result<Self> {
+        match proto.version {
+            Some(helium_proto::mapper_attach::Version::AttachV1(v1)) => v1.try_into(),
+            None => Err(Error::ProtoHasNone("version")),
+        }
     }
 }
 

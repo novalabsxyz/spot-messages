@@ -2,6 +2,7 @@ use super::{
     gps::{altitude, hdop, latlon, speed, time, Gps},
     mapper_msg_with_payload, Error, Result,
 };
+use helium_proto::MapperBeaconV1;
 use modular_bitfield_msb::{bitfield, specifiers::*};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -26,10 +27,10 @@ impl Beacon {
     }
 }
 
-impl TryFrom<helium_proto::MapperBeaconV1> for Beacon {
+impl TryFrom<MapperBeaconV1> for Beacon {
     type Error = Error;
 
-    fn try_from(proto: helium_proto::MapperBeaconV1) -> Result<Self> {
+    fn try_from(proto: MapperBeaconV1) -> Result<Self> {
         if let Some(gps) = proto.gps {
             Ok(Self {
                 gps: gps.into(),
@@ -41,7 +42,7 @@ impl TryFrom<helium_proto::MapperBeaconV1> for Beacon {
     }
 }
 
-impl From<Beacon> for helium_proto::MapperBeaconV1 {
+impl From<Beacon> for MapperBeaconV1 {
     fn from(beacon: Beacon) -> Self {
         Self {
             gps: Some(beacon.gps.into()),
@@ -62,6 +63,16 @@ impl From<Beacon> for helium_proto::mapper_payload::Message {
 impl From<Beacon> for helium_proto::MapperMsg {
     fn from(beacon: Beacon) -> Self {
         mapper_msg_with_payload(beacon.into())
+    }
+}
+
+impl TryFrom<helium_proto::MapperBeacon> for Beacon {
+    type Error = Error;
+    fn try_from(proto: helium_proto::MapperBeacon) -> Result<Self> {
+        match proto.version {
+            Some(helium_proto::mapper_beacon::Version::BeaconV1(v1)) => v1.try_into(),
+            None => Err(Error::ProtoHasNone("version")),
+        }
     }
 }
 
