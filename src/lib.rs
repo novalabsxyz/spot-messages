@@ -1,6 +1,11 @@
 use chrono::{prelude::*, DateTime, NaiveDateTime};
 
-pub use helium_proto::{self, Message};
+pub use helium_proto::{self, Message as ProtoMessage};
+use helium_proto::{mapper_payload, MapperMsg};
+
+pub use helium_crypto::public_key::PublicKey;
+use helium_crypto::Verify;
+
 mod cell_attach;
 pub use cell_attach::*;
 
@@ -18,6 +23,19 @@ pub use beacon::*;
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
+pub enum Payload {
+    CellAttach(CellAttach),
+    CellScan(CellScan),
+    Beacon(Beacon),
+}
+
+pub struct Message {
+    pub payload: Payload,
+    pub signature: Vec<u8>,
+    pub pubkey: PublicKey,
+    pub hotspots: Vec<PublicKey>,
+}
+
 use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
@@ -33,15 +51,91 @@ pub enum Error {
     ProtoHasNone(&'static str),
     #[error("decimal could not map to float: {decimal}")]
     DecimalCouldNotMapToFloat { decimal: rust_decimal::Decimal },
+    #[error("pubkey parsing error: {error} for the following bytes: {bytes:?}")]
+    PubkeyParse {
+        error: helium_crypto::Error,
+        bytes: Vec<u8>,
+    },
+    #[error("the signature ({signature:?}) does not verify the message ({msg:?}) for the pubkey {pubkey}")]
+    SignatureVerification {
+        pubkey: Box<PublicKey>,
+        msg: Vec<u8>,
+        signature: Vec<u8>,
+    },
 }
 
-fn mapper_msg_with_payload(
-    payload: helium_proto::mapper_payload::Message,
-) -> helium_proto::MapperMsg {
-    use helium_proto::{mapper_msg, MapperMsg, MapperMsgV1, MapperPayload};
+impl TryFrom<mapper_payload::Message> for Payload {
+    type Error = Error;
+
+    fn try_from(value: mapper_payload::Message) -> std::result::Result<Self, Self::Error> {
+        match value {
+            mapper_payload::Message::Beacon(beacon) => Ok(Payload::Beacon(beacon.try_into()?)),
+            mapper_payload::Message::Attach(attach) => Ok(Payload::CellAttach(attach.try_into()?)),
+            mapper_payload::Message::Scan(scan) => Ok(Payload::CellScan(scan.try_into()?)),
+        }
+    }
+}
+
+impl TryFrom<MapperMsg> for Message {
+    type Error = Error;
+
+    fn try_from(value: MapperMsg) -> std::result::Result<Self, Self::Error> {
+        match value.version {
+            Some(helium_proto::mapper_msg::Version::MsgV1(msg)) => msg.try_into(),
+            _ => Err(Error::ProtoHasNone("version")),
+        }
+    }
+}
+
+/// This TryFrom implementation will throw an error if:
+///     * the signature is not valid
+///     * certain Vec<u8>'s are not parsable as pubkeys
+///     * the protos are missing fields
+impl TryFrom<helium_proto::MapperMsgV1> for Message {
+    type Error = Error;
+
+    fn try_from(value: helium_proto::MapperMsgV1) -> std::result::Result<Self, Self::Error> {
+        let payload = value.payload.ok_or(Error::ProtoHasNone("payload"))?;
+        let payload = payload.message.ok_or(Error::ProtoHasNone("message"))?;
+
+        let mut payload_bytes = Vec::new();
+        payload.encode(&mut payload_bytes);
+        let pubkey = PublicKey::from_bytes(&value.pubkey).map_err(|error| Error::PubkeyParse {
+            error,
+            bytes: value.pubkey,
+        })?;
+
+        pubkey
+            .verify(&payload_bytes, &value.signature)
+            .map_err(|_| Error::SignatureVerification {
+                pubkey: Box::new(pubkey.clone()),
+                msg: payload_bytes,
+                signature: value.signature.clone(),
+            })?;
+
+        let payload = payload.try_into()?;
+
+        Ok(Self {
+            payload,
+            signature: value.signature,
+            pubkey,
+            hotspots: value
+                .hotspots
+                .into_iter()
+                .map(|v| {
+                    PublicKey::from_bytes(&v)
+                        .map_err(|error| Error::PubkeyParse { error, bytes: v })
+                })
+                .collect::<Result<_>>()?,
+        })
+    }
+}
+
+fn mapper_msg_with_payload(payload: mapper_payload::Message) -> MapperMsg {
+    use helium_proto::{mapper_msg, MapperMsgV1, MapperPayload};
     MapperMsg {
         version: Some(mapper_msg::Version::MsgV1(MapperMsgV1 {
-            pub_key: vec![0; 32],
+            pubkey: vec![0; 32],
             payload: Some(MapperPayload {
                 message: Some(payload),
             }),

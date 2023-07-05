@@ -1,4 +1,5 @@
 use super::{mapper_msg_with_payload, Error, Result};
+use helium_proto::MapperScan;
 
 use crate::Gps;
 
@@ -6,14 +7,14 @@ pub const CBRS_MCC: u16 = 315;
 pub const CBRS_MNC: u16 = 10;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CellScanResults {
+pub struct CellScan {
     pub scan_counter: u32,
     pub gps: Gps,
     pub results: Vec<CellScanResult>,
 }
 
-impl From<CellScanResults> for helium_proto::MapperCellScanV1 {
-    fn from(scan_response: CellScanResults) -> Self {
+impl From<CellScan> for helium_proto::MapperCellScanV1 {
+    fn from(scan_response: CellScan) -> Self {
         Self {
             scan_counter: scan_response.scan_counter,
             gps: Some(scan_response.gps.into()),
@@ -26,7 +27,7 @@ impl From<CellScanResults> for helium_proto::MapperCellScanV1 {
     }
 }
 
-impl TryFrom<helium_proto::MapperCellScanV1> for CellScanResults {
+impl TryFrom<helium_proto::MapperCellScanV1> for CellScan {
     type Error = Error;
 
     fn try_from(proto: helium_proto::MapperCellScanV1) -> Result<Self> {
@@ -42,17 +43,28 @@ impl TryFrom<helium_proto::MapperCellScanV1> for CellScanResults {
     }
 }
 
-impl From<CellScanResults> for helium_proto::mapper_payload::Message {
-    fn from(scan_results: CellScanResults) -> Self {
-        use helium_proto::{mapper_payload, mapper_scan, MapperScan};
+impl From<CellScan> for helium_proto::mapper_payload::Message {
+    fn from(scan_results: CellScan) -> Self {
+        use helium_proto::{mapper_payload, mapper_scan};
         mapper_payload::Message::Scan(MapperScan {
             version: Some(mapper_scan::Version::ScanV1(scan_results.into())),
         })
     }
 }
 
-impl From<CellScanResults> for helium_proto::MapperMsg {
-    fn from(scan_results: CellScanResults) -> Self {
+impl TryFrom<MapperScan> for CellScan {
+    type Error = Error;
+
+    fn try_from(proto: MapperScan) -> Result<Self> {
+        match proto.version {
+            Some(helium_proto::mapper_scan::Version::ScanV1(v1)) => v1.try_into(),
+            None => Err(Error::ProtoHasNone("version")),
+        }
+    }
+}
+
+impl From<CellScan> for helium_proto::MapperMsg {
+    fn from(scan_results: CellScan) -> Self {
         mapper_msg_with_payload(scan_results.into())
     }
 }
@@ -141,7 +153,7 @@ mod test {
         for _ in 0..40 {
             results.push(CellScanResult::random());
         }
-        let scan_results = CellScanResults {
+        let scan_results = CellScan {
             scan_counter: 24,
             gps: Gps::rounded(),
             results,
