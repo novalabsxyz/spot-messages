@@ -23,12 +23,14 @@ pub use beacon::*;
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Payload {
     CellAttach(CellAttach),
     CellScan(CellScan),
     Beacon(Beacon),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     pub payload: Payload,
     pub signature: Vec<u8>,
@@ -76,8 +78,6 @@ impl TryFrom<mapper_payload::Message> for Payload {
     }
 }
 
-
-
 impl TryFrom<MapperMsg> for Message {
     type Error = Error;
 
@@ -88,7 +88,6 @@ impl TryFrom<MapperMsg> for Message {
         }
     }
 }
-
 
 impl Message {
     pub fn try_from_with_signature_verification(value: MapperMsg) -> Result<Self> {
@@ -136,8 +135,6 @@ impl Message {
         })
     }
 }
-
-
 
 /// This TryFrom implementation will throw an error if:
 ///     * certain Vec<u8>'s are not parsable as pubkeys
