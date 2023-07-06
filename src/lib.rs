@@ -126,7 +126,7 @@ impl From<Message> for MapperMsg {
 }
 
 impl Message {
-    pub fn new_with_signature<K: keys::KeyTrait>(
+    pub fn from_payload_signed<K: keys::KeyTrait>(
         key: K,
         payload: Payload,
     ) -> std::result::Result<Self, Error> {
@@ -237,7 +237,7 @@ mod test {
         };
         // test signing cell scan
         let msg =
-            Message::new_with_signature(key.clone(), Payload::CellScan(scan_results)).unwrap();
+            Message::from_payload_signed(key.clone(), Payload::CellScan(scan_results)).unwrap();
         let proto_msg: MapperMsg = msg.clone().try_into().unwrap();
         let msg_rx = Message::try_from_with_signature_verification(proto_msg).unwrap();
         assert_eq!(msg, msg_rx);
