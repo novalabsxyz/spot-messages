@@ -225,19 +225,9 @@ mod test {
     #[test]
     fn sign_and_verify_roundtrip() {
         let key = keys::file::File::create_key().unwrap();
-
-        let mut results = Vec::new();
-        for _ in 0..40 {
-            results.push(CellScanResult::random());
-        }
-        let scan_results = CellScan {
-            scan_counter: 24,
-            gps: Gps::rounded(),
-            results,
-        };
+        let scan_results = CellScan::random();
         // test signing cell scan
-        let msg =
-            Message::from_payload_signed(&key, Payload::CellScan(scan_results)).unwrap();
+        let msg = Message::from_payload_signed(&key, Payload::CellScan(scan_results)).unwrap();
         let proto_msg: MapperMsg = msg.clone().try_into().unwrap();
         let msg_rx = Message::try_from_with_signature_verification(proto_msg).unwrap();
         assert_eq!(msg, msg_rx);
