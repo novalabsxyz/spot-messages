@@ -223,7 +223,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn roundtrip_and_sign_and_verify_roundtrip() {
+    fn sign_and_verify_roundtrip() {
         let key = keys::file::File::create_key().unwrap();
 
         let mut results = Vec::new();
