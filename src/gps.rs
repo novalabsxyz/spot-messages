@@ -39,25 +39,22 @@ impl Gps {
         }
     }
 
-    #[cfg(test)]
     pub fn random() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let timestamp = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 5).unwrap();
-        let value = Gps {
+        Gps {
             timestamp,
             lat: Decimal::new(rng.gen_range(-90_00000..90_00000), 5),
             lon: Decimal::new(rng.gen_range(-180_00000..180_00000), 5),
             hdop: Decimal::new(rng.gen_range(0..10_00), 2),
             //// WGS-84 on the surface of earth ranges from +85m (Iceland) to -106m (India)
-            altitude: Decimal::new(rng.gen_range(-106_00..85_00), 2),
+            altitude: Decimal::new(rng.gen_range(-10_600..8_500), 2),
             num_sats: rng.gen_range(0..12),
             speed: Decimal::new(rng.gen_range(0..50_00), 2),
-        };
-        value
+        }
     }
 
-    #[cfg(test)]
     /// provides a rounded GPS value for easy roundtrip testing to lorawan payloads
     pub fn rounded() -> Self {
         let timestamp = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 5).unwrap();

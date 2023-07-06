@@ -13,6 +13,22 @@ pub struct CellScan {
     pub results: Vec<CellScanResult>,
 }
 
+impl CellScan {
+    pub fn random() -> CellScan {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let mut results = Vec::new();
+        for _ in 0..rng.gen_range(1..40) {
+            results.push(CellScanResult::random());
+        }
+        CellScan {
+            scan_counter: 24,
+            gps: Gps::rounded(),
+            results,
+        }
+    }
+}
+
 impl From<CellScan> for helium_proto::MapperCellScanV1 {
     fn from(scan_response: CellScan) -> Self {
         Self {
@@ -93,7 +109,6 @@ impl CellScanResult {
         }
     }
 
-    #[cfg(test)]
     pub fn random() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
@@ -149,15 +164,7 @@ mod test {
 
     #[test]
     fn scan_roundtrip_proto() {
-        let mut results = Vec::new();
-        for _ in 0..40 {
-            results.push(CellScanResult::random());
-        }
-        let scan_results = CellScan {
-            scan_counter: 24,
-            gps: Gps::rounded(),
-            results,
-        };
+        let scan_results = CellScan::random();
         let proto: helium_proto::MapperCellScanV1 = scan_results.clone().into();
 
         let mut proto_bytes = Vec::new();
