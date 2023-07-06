@@ -1,7 +1,7 @@
 use chrono::{prelude::*, DateTime, NaiveDateTime};
 
 pub use helium_proto::{self, Message as ProtoMessage};
-use helium_proto::{mapper_payload, MapperMsg};
+use helium_proto::{mapper_payload, MapperMsg, MapperMsgV1};
 
 pub use helium_crypto::public_key::PublicKey;
 use helium_crypto::Verify;
@@ -15,8 +15,7 @@ pub use gps::*;
 mod cell_scan;
 pub use cell_scan::*;
 
-mod keys;
-pub use keys::*;
+pub mod keys;
 
 mod ports;
 pub use ports::*;
@@ -41,8 +40,7 @@ pub struct Message {
     pub hotspots: Vec<PublicKey>,
 }
 
-use thiserror::Error;
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("parse int error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
@@ -67,6 +65,10 @@ pub enum Error {
         msg: Vec<u8>,
         signature: Vec<u8>,
     },
+    #[error("helium proto encode error: {0}")]
+    HeliumProtoEncode(#[from] helium_proto::EncodeError),
+    #[error("key error: {0}")]
+    Key(String), // String avoids making all of these API require the KeyTrait definition
 }
 
 impl TryFrom<mapper_payload::Message> for Payload {
@@ -77,6 +79,18 @@ impl TryFrom<mapper_payload::Message> for Payload {
             mapper_payload::Message::Beacon(beacon) => Ok(Payload::Beacon(beacon.try_into()?)),
             mapper_payload::Message::Attach(attach) => Ok(Payload::CellAttach(attach.try_into()?)),
             mapper_payload::Message::Scan(scan) => Ok(Payload::CellScan(scan.try_into()?)),
+        }
+    }
+}
+
+impl TryFrom<Payload> for mapper_payload::Message {
+    type Error = Error;
+
+    fn try_from(payload: Payload) -> std::result::Result<Self, Self::Error> {
+        match payload {
+            Payload::Beacon(beacon) => Ok(beacon.into()),
+            Payload::CellAttach(attach) => Ok(attach.into()),
+            Payload::CellScan(scan) => Ok(scan.into()),
         }
     }
 }
@@ -92,7 +106,47 @@ impl TryFrom<MapperMsg> for Message {
     }
 }
 
+impl From<Message> for MapperMsg {
+    fn from(value: Message) -> Self {
+        MapperMsg {
+            version: Some(helium_proto::mapper_msg::Version::MsgV1(MapperMsgV1 {
+                payload: Some(helium_proto::MapperPayload {
+                    message: Some(value.payload.try_into().unwrap()),
+                }),
+                signature: value.signature,
+                pubkey: value.pubkey.to_vec(),
+                hotspots: value
+                    .hotspots
+                    .iter()
+                    .map(|pubkey| pubkey.to_vec())
+                    .collect(),
+            })),
+        }
+    }
+}
+
 impl Message {
+    pub fn new_with_signature<K: keys::KeyTrait>(
+        key: K,
+        payload: Payload,
+    ) -> std::result::Result<Self, Error> {
+        let mut payload_bytes = Vec::new();
+        let payload_proto = helium_proto::MapperPayload {
+            message: Some(payload.clone().try_into()?),
+        };
+        payload_proto.encode(&mut payload_bytes)?;
+        let signature = key
+            .sign(&payload_bytes)
+            .map_err(|e| Error::Key(e.to_string()))?;
+        Ok(Message {
+            payload,
+            signature,
+            pubkey: key.pubkey().map_err(|e| Error::Key(e.to_string()))?,
+            // this field is left blank because it is not used in the mapper
+            hotspots: vec![],
+        })
+    }
+
     pub fn try_from_with_signature_verification(value: MapperMsg) -> Result<Self> {
         match value.version {
             Some(helium_proto::mapper_msg::Version::MsgV1(msg)) => Self::inner_try_from(msg, true),
@@ -151,7 +205,7 @@ impl TryFrom<helium_proto::MapperMsgV1> for Message {
 }
 
 fn mapper_msg_with_payload(payload: mapper_payload::Message) -> MapperMsg {
-    use helium_proto::{mapper_msg, MapperMsgV1, MapperPayload};
+    use helium_proto::{mapper_msg, MapperPayload};
     MapperMsg {
         version: Some(mapper_msg::Version::MsgV1(MapperMsgV1 {
             pubkey: vec![0; 32],
@@ -161,5 +215,31 @@ fn mapper_msg_with_payload(payload: mapper_payload::Message) -> MapperMsg {
             signature: vec![0; 64],
             hotspots: vec![],
         })),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn roundtrip_and_sign_and_verify_roundtrip() {
+        let key = keys::file::File::create_key().unwrap();
+
+        let mut results = Vec::new();
+        for _ in 0..40 {
+            results.push(CellScanResult::random());
+        }
+        let scan_results = CellScan {
+            scan_counter: 24,
+            gps: Gps::rounded(),
+            results,
+        };
+        // test signing cell scan
+        let msg =
+            Message::new_with_signature(key.clone(), Payload::CellScan(scan_results)).unwrap();
+        let proto_msg: MapperMsg = msg.clone().try_into().unwrap();
+        let msg_rx = Message::try_from_with_signature_verification(proto_msg).unwrap();
+        assert_eq!(msg, msg_rx);
     }
 }
