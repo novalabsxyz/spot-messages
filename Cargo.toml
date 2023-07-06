@@ -8,9 +8,7 @@ chrono = { version = "0", features = ["serde"] }
 helium-crypto = "<=0.6.3"
 helium-proto = { git = "https://github.com/helium/proto", branch = "lthiery/mapper-service", features = ["services"] }
 h3o = "0"
-rust_decimal = "1"
-thiserror = "1"
 modular-bitfield-msb = "0"
-
-[dev-dependencies]
+rust_decimal = "1"
 rand = "0"
+thiserror = "1"

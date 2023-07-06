@@ -15,6 +15,9 @@ pub use gps::*;
 mod cell_scan;
 pub use cell_scan::*;
 
+mod keys;
+pub use keys::*;
+
 mod ports;
 pub use ports::*;
 
