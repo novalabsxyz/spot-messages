@@ -1,4 +1,5 @@
 use super::*;
+use helium_proto::{mapper_gps, MapperGps};
 use rust_decimal::Decimal;
 
 pub const ZERO_DECIMAL: Decimal = Decimal::from_parts(0, 0, 0, false, 0);
@@ -95,6 +96,26 @@ impl From<helium_proto::MapperGpsV1> for Gps {
             num_sats: gps_proto.num_sats as u8,
             speed: speed::from_proto_units(gps_proto.speed),
         }
+    }
+}
+
+impl TryFrom<MapperGps> for Gps {
+    type Error = Error;
+
+    fn try_from(proto: MapperGps) -> Result<Self> {
+        if let Some(mapper_gps::Version::GpsV1(proto)) = proto.version {
+            Ok(proto.into())
+        } else {
+            Err(Error::ProtoHasNone("version"))
+        }
+    }
+}
+
+impl From<Gps> for mapper_payload::Message {
+    fn from(gps: Gps) -> Self {
+        mapper_payload::Message::Gps(MapperGps {
+            version: Some(mapper_gps::Version::GpsV1(gps.into())),
+        })
     }
 }
 

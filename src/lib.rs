@@ -30,6 +30,7 @@ pub enum Payload {
     CellAttach(CellAttach),
     CellScan(CellScan),
     Beacon(Beacon),
+    Gps(Gps),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +80,7 @@ impl TryFrom<mapper_payload::Message> for Payload {
             mapper_payload::Message::Beacon(beacon) => Ok(Payload::Beacon(beacon.try_into()?)),
             mapper_payload::Message::Attach(attach) => Ok(Payload::CellAttach(attach.try_into()?)),
             mapper_payload::Message::Scan(scan) => Ok(Payload::CellScan(scan.try_into()?)),
+            mapper_payload::Message::Gps(gps) => Ok(Payload::Gps(gps.try_into()?)),
         }
     }
 }
@@ -91,6 +93,7 @@ impl TryFrom<Payload> for mapper_payload::Message {
             Payload::Beacon(beacon) => Ok(beacon.into()),
             Payload::CellAttach(attach) => Ok(attach.into()),
             Payload::CellScan(scan) => Ok(scan.into()),
+            Payload::Gps(gps) => Ok(gps.into()),
         }
     }
 }
