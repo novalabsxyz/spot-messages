@@ -9,7 +9,7 @@ pub struct CellAttach {
     pub gps: Gps,
     pub candidate: AttachCandidate,
     // did the attach succeed?
-    pub result: AttachResult,
+    pub result: CellAttachResult,
 }
 
 impl CellAttach {
@@ -83,12 +83,12 @@ impl From<CellAttach> for helium_proto::MapperCbrsAttachV1 {
             gps: Some(attach_candidate_result.gps.into()),
             candidate: Some(attach_candidate_result.candidate.into()),
             result: match attach_candidate_result.result {
-                AttachResult::NoAttach => Result::None,
-                AttachResult::Connected => Result::Connect,
-                AttachResult::LimitedService => Result::LimitedService,
-                AttachResult::NoConnection => Result::NoConnection,
-                AttachResult::Search => Result::Search,
-                AttachResult::NoNetworkService => Result::NoNetworkService,
+                CellAttachResult::NoAttach => Result::None,
+                CellAttachResult::Connected => Result::Connect,
+                CellAttachResult::LimitedService => Result::LimitedService,
+                CellAttachResult::NoConnection => Result::NoConnection,
+                CellAttachResult::Search => Result::Search,
+                CellAttachResult::NoNetworkService => Result::NoNetworkService,
             }
             .into(),
         }
@@ -99,12 +99,12 @@ impl TryFrom<helium_proto::MapperCbrsAttachV1> for CellAttach {
     type Error = Error;
     fn try_from(attach: helium_proto::MapperCbrsAttachV1) -> Result<Self> {
         let result = match attach.result {
-            0 => Ok(AttachResult::NoAttach),
-            1 => Ok(AttachResult::Connected),
-            2 => Ok(AttachResult::LimitedService),
-            3 => Ok(AttachResult::NoConnection),
-            4 => Ok(AttachResult::Search),
-            5 => Ok(AttachResult::NoNetworkService),
+            0 => Ok(CellAttachResult::NoAttach),
+            1 => Ok(CellAttachResult::Connected),
+            2 => Ok(CellAttachResult::LimitedService),
+            3 => Ok(CellAttachResult::NoConnection),
+            4 => Ok(CellAttachResult::Search),
+            5 => Ok(CellAttachResult::NoNetworkService),
             _ => Err(Error::InvalidAttachResultInt {
                 value: attach.result,
             }),
@@ -239,7 +239,7 @@ struct LoraPayload {
     rsrq: B8,
     #[bits = 3]
     #[allow(dead_code)]
-    result: AttachResult,
+    result: CellAttachResult,
     // padding for the struct is necessary to make it byte aligned
     #[allow(unused)]
     padding: B1,
@@ -250,7 +250,7 @@ pub const RSRQ_OFFSET: i32 = 30;
 
 #[derive(Debug, Clone, BitfieldSpecifier, PartialEq)]
 #[bits = 3]
-pub enum AttachResult {
+pub enum CellAttachResult {
     NoAttach,
     Connected,
     LimitedService,
@@ -259,22 +259,22 @@ pub enum AttachResult {
     NoNetworkService,
 }
 
-impl AttachResult {
+impl CellAttachResult {
     pub fn is_successful(&self) -> bool {
-        !matches!(self, AttachResult::NoAttach)
+        !matches!(self, CellAttachResult::NoAttach)
     }
 }
 
-impl std::str::FromStr for AttachResult {
+impl std::str::FromStr for CellAttachResult {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "NONE" => Ok(AttachResult::NoAttach),
-            "CONNECT" => Ok(AttachResult::Connected),
-            "LIMSERV" => Ok(AttachResult::LimitedService),
-            "NOCONN" => Ok(AttachResult::NoConnection),
-            "SEARCH" => Ok(AttachResult::Search),
+            "NONE" => Ok(CellAttachResult::NoAttach),
+            "CONNECT" => Ok(CellAttachResult::Connected),
+            "LIMSERV" => Ok(CellAttachResult::LimitedService),
+            "NOCONN" => Ok(CellAttachResult::NoConnection),
+            "SEARCH" => Ok(CellAttachResult::Search),
             _ => Err(Error::UnexpectedAttachResultStr(s.into())),
         }
     }
@@ -290,7 +290,7 @@ mod test {
             attach_counter: 5,
             gps: Gps::rounded(),
             candidate: AttachCandidate::from(CellScanResult::random()),
-            result: AttachResult::Connected,
+            result: CellAttachResult::Connected,
         };
 
         let lora_payload = LoraPayload::from(payload.clone());
@@ -305,7 +305,7 @@ mod test {
             attach_counter: 5,
             gps: Gps::rounded(),
             candidate: AttachCandidate::from(CellScanResult::random()),
-            result: AttachResult::Connected,
+            result: CellAttachResult::Connected,
         };
         let proto: helium_proto::MapperCbrsAttachV1 = attach.clone().into();
 
