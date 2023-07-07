@@ -1,11 +1,11 @@
 use super::{
     gps::{altitude, hdop, latlon, speed, time, Gps},
-    mapper_msg_with_payload, Error, Result, Serialize,
+    mapper_msg_with_payload, Deserialize, Error, Result, Serialize,
 };
 use helium_proto::MapperBeaconV1;
 use modular_bitfield_msb::{bitfield, specifiers::*};
 
-#[derive(PartialEq, Debug, Clone, Serialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Beacon {
     gps: Gps,
     signature: Vec<u8>,

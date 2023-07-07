@@ -2,7 +2,7 @@ use super::gps::{altitude, hdop, latlon, speed, time};
 use super::*;
 use helium_proto::MapperAttach;
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CellAttach {
     // This allows us to detect censorship efforts. It can roll over.
     pub attach_counter: u32,
@@ -122,7 +122,7 @@ impl TryFrom<helium_proto::MapperCbrsAttachV1> for CellAttach {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttachCandidate {
     pub from_scan: u32,
     pub delay: u32,
@@ -261,7 +261,7 @@ struct LoraPayload {
 pub const RSRP_OFFSET: i32 = 150;
 pub const RSRQ_OFFSET: i32 = 30;
 
-#[derive(Debug, Copy, Clone, BitfieldSpecifier, PartialEq, Serialize)]
+#[derive(Debug, Copy, Clone, BitfieldSpecifier, PartialEq, Serialize, Deserialize)]
 #[bits = 3]
 pub enum CellAttachResult {
     NoAttach,
