@@ -9,8 +9,8 @@ use helium_crypto::Verify;
 mod cell_attach;
 pub use cell_attach::*;
 
-mod gps;
-pub use gps::*;
+pub mod gps;
+pub use gps::Gps;
 
 mod cell_scan;
 pub use cell_scan::*;
