@@ -22,18 +22,19 @@ pub struct Gps {
     pub speed: Decimal,
 }
 
+pub use h3o::Resolution;
+
 impl Gps {
     pub fn is_locked(&self) -> bool {
         self.num_sats >= 3 && self.hdop > ZERO_DECIMAL
     }
 
-    pub fn to_h3_cell(&self) -> Result<h3o::CellIndex> {
-        use h3o::{LatLng, Resolution};
+    pub fn to_h3_cell(&self, r: h3o::Resolution) -> Result<h3o::CellIndex> {
         use rust_decimal::prelude::ToPrimitive;
         match (self.lat.to_f64(), self.lon.to_f64()) {
             (Some(lat), Some(lon)) => {
-                let coord = LatLng::new(lat, lon)?;
-                Ok(coord.to_cell(Resolution::Fifteen))
+                let coord = h3o::LatLng::new(lat, lon)?;
+                Ok(coord.to_cell(r))
             }
             (None, _) => Err(Error::DecimalCouldNotMapToFloat { decimal: self.lat }),
             (_, None) => Err(Error::DecimalCouldNotMapToFloat { decimal: self.lon }),
