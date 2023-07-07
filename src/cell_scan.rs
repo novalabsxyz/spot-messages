@@ -1,4 +1,4 @@
-use super::{mapper_msg_with_payload, Error, Result};
+use super::{mapper_msg_with_payload, Error, Result, Serialize};
 use helium_proto::MapperScan;
 
 use crate::Gps;
@@ -6,7 +6,7 @@ use crate::Gps;
 pub const CBRS_MCC: u16 = 315;
 pub const CBRS_MNC: u16 = 10;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CellScan {
     pub scan_counter: u32,
     pub gps: Gps,
@@ -85,7 +85,7 @@ impl From<CellScan> for helium_proto::MapperMsg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CellScanResult {
     pub mcc: u16,
     pub mnc: u16,

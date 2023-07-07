@@ -1,5 +1,5 @@
 use chrono::{prelude::*, DateTime, NaiveDateTime};
-
+use serde::{Serialize};
 pub use helium_proto::{self, Message as ProtoMessage};
 use helium_proto::{mapper_payload, MapperMsg, MapperMsgV1};
 

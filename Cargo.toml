@@ -11,4 +11,5 @@ h3o = "0"
 modular-bitfield-msb = "0"
 rust_decimal = "1"
 rand = "0"
+serde =  {version = "1", features = ["derive"] }
 thiserror = "1"

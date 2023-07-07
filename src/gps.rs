@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 pub const ZERO_DECIMAL: Decimal = Decimal::from_parts(0, 0, 0, false, 0);
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct Gps {
     /// UTC of position fix
     pub timestamp: DateTime<Utc>,
