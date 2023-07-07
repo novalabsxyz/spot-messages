@@ -145,6 +145,19 @@ impl From<CellScanResult> for AttachCandidate {
     }
 }
 
+impl AttachCandidate {
+    pub fn from_scan_result_from_scan_with_delay(
+        scan_result: CellScanResult,
+        from_scan: u32,
+        delay: u32,
+    ) -> Self {
+        let mut ac = Self::from(scan_result);
+        ac.from_scan = from_scan;
+        ac.delay = delay;
+        ac
+    }
+}
+
 impl From<AttachCandidate> for helium_proto::mapper_cbrs_attach_v1::MapperCbrsAttachCandidate {
     fn from(attach_candidate: AttachCandidate) -> Self {
         Self {
