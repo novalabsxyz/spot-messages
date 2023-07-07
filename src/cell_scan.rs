@@ -85,7 +85,7 @@ impl From<CellScan> for helium_proto::MapperMsg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
 pub struct CellScanResult {
     pub mcc: u16,
     pub mnc: u16,
