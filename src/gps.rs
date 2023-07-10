@@ -1,9 +1,10 @@
 use super::*;
+use helium_proto::{mapper_gps, MapperGps};
 use rust_decimal::Decimal;
 
 pub const ZERO_DECIMAL: Decimal = Decimal::from_parts(0, 0, 0, false, 0);
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Gps {
     /// UTC of position fix
     pub timestamp: DateTime<Utc>,
@@ -21,18 +22,19 @@ pub struct Gps {
     pub speed: Decimal,
 }
 
+pub use h3o::Resolution;
+
 impl Gps {
     pub fn is_locked(&self) -> bool {
         self.num_sats >= 3 && self.hdop > ZERO_DECIMAL
     }
 
-    pub fn to_h3_cell(&self) -> Result<h3o::CellIndex> {
-        use h3o::{LatLng, Resolution};
+    pub fn to_h3_cell(&self, r: h3o::Resolution) -> Result<h3o::CellIndex> {
         use rust_decimal::prelude::ToPrimitive;
         match (self.lat.to_f64(), self.lon.to_f64()) {
             (Some(lat), Some(lon)) => {
-                let coord = LatLng::new(lat, lon)?;
-                Ok(coord.to_cell(Resolution::Fifteen))
+                let coord = h3o::LatLng::new(lat, lon)?;
+                Ok(coord.to_cell(r))
             }
             (None, _) => Err(Error::DecimalCouldNotMapToFloat { decimal: self.lat }),
             (_, None) => Err(Error::DecimalCouldNotMapToFloat { decimal: self.lon }),
@@ -98,7 +100,27 @@ impl From<helium_proto::MapperGpsV1> for Gps {
     }
 }
 
-pub(crate) mod hdop {
+impl TryFrom<MapperGps> for Gps {
+    type Error = Error;
+
+    fn try_from(proto: MapperGps) -> Result<Self> {
+        if let Some(mapper_gps::Version::GpsV1(proto)) = proto.version {
+            Ok(proto.into())
+        } else {
+            Err(Error::ProtoHasNone("version"))
+        }
+    }
+}
+
+impl From<Gps> for mapper_payload::Message {
+    fn from(gps: Gps) -> Self {
+        mapper_payload::Message::Gps(MapperGps {
+            version: Some(mapper_gps::Version::GpsV1(gps.into())),
+        })
+    }
+}
+
+pub mod hdop {
     use super::*;
 
     pub fn to_units(hdop: Decimal) -> u32 {
@@ -112,16 +134,16 @@ pub(crate) mod hdop {
     }
 }
 
-pub(crate) mod time {
+pub mod time {
     use super::*;
     // time for 2023-01-01 00:00:00 UTC
     const REFERENCE: i64 = 1672531200;
 
-    pub fn to_lora_units(datetime: DateTime<Utc>) -> u32 {
+    pub(crate) fn to_lora_units(datetime: DateTime<Utc>) -> u32 {
         (datetime.timestamp() - REFERENCE) as u32
     }
 
-    pub fn from_lora_units(timestamp: u32) -> DateTime<Utc> {
+    pub(crate) fn from_lora_units(timestamp: u32) -> DateTime<Utc> {
         DateTime::<Utc>::from_utc(
             NaiveDateTime::from_timestamp_opt(timestamp as i64 + REFERENCE, 0).unwrap(),
             Utc,
@@ -170,7 +192,7 @@ pub(crate) mod time {
     }
 }
 
-pub(crate) mod latlon {
+pub mod latlon {
     use super::*;
 
     const LAT_OFFSET: Decimal = Decimal::from_parts(9000000, 0, 0, false, 5);
@@ -205,13 +227,13 @@ pub(crate) mod latlon {
         }
     }
 
-    pub(crate) fn to_proto_units(coordinate: Decimal) -> i32 {
+    pub fn to_proto_units(coordinate: Decimal) -> i32 {
         let multiplier = Decimal::new(100000, 0);
         let scaled = coordinate.checked_mul(multiplier).unwrap().round();
         scaled.to_string().parse::<i32>().unwrap()
     }
 
-    pub(crate) fn from_proto_units(unit: i32) -> Decimal {
+    pub fn from_proto_units(unit: i32) -> Decimal {
         Decimal::new(unit.into(), 5)
     }
 
@@ -262,7 +284,7 @@ pub(crate) mod latlon {
     }
 }
 
-pub(crate) mod altitude {
+pub mod altitude {
     use super::*;
     #[allow(clippy::inconsistent_digit_grouping)]
     const ALTITUDE_OFFSET: Decimal = Decimal::from_parts(110_00, 0, 0, false, 2);
@@ -271,7 +293,7 @@ pub(crate) mod altitude {
     #[allow(clippy::zero_prefixed_literal, clippy::inconsistent_digit_grouping)]
     const ALTITUDE_PROTO_SCALAR: Decimal = Decimal::from_parts(1, 0, 0, false, 2);
 
-    pub fn to_lora_units(altitude: Decimal) -> u32 {
+    pub(crate) fn to_lora_units(altitude: Decimal) -> u32 {
         let offset_altitude = altitude + ALTITUDE_OFFSET;
         let scaled = offset_altitude
             .checked_div(ALTITUDE_LORA_SCALAR)
@@ -280,7 +302,7 @@ pub(crate) mod altitude {
         scaled.to_string().parse::<u32>().unwrap()
     }
 
-    pub fn from_lora_units(altitude: u32) -> Decimal {
+    pub(crate) fn from_lora_units(altitude: u32) -> Decimal {
         let altitude_unscaled = Decimal::new(altitude.into(), 0);
         let altitude_unoffset = altitude_unscaled.checked_mul(ALTITUDE_LORA_SCALAR).unwrap();
         altitude_unoffset - ALTITUDE_OFFSET
@@ -344,18 +366,18 @@ pub(crate) mod altitude {
     }
 }
 
-pub(crate) mod speed {
+pub mod speed {
     use super::*;
     #[allow(clippy::zero_prefixed_literal, clippy::inconsistent_digit_grouping)]
     const SPEED_LORA_SCALAR: Decimal = Decimal::from_parts(0_25, 0, 0, false, 2);
     const SPEED_PROTO_SCALAR: Decimal = Decimal::from_parts(1, 0, 0, false, 2);
 
-    pub fn to_lora_units(speed: Decimal) -> u32 {
+    pub(crate) fn to_lora_units(speed: Decimal) -> u32 {
         let scaled = speed.checked_div(SPEED_LORA_SCALAR).unwrap().round();
         scaled.to_string().parse::<u32>().unwrap()
     }
 
-    pub fn from_lora_units(speed: u32) -> Decimal {
+    pub(crate) fn from_lora_units(speed: u32) -> Decimal {
         let speed_unscaled = Decimal::new(speed.into(), 0);
         speed_unscaled.checked_mul(SPEED_LORA_SCALAR).unwrap()
     }
