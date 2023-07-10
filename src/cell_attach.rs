@@ -145,15 +145,19 @@ impl From<CellScanResult> for AttachCandidate {
     }
 }
 
+pub struct AttachCandidateConfig {
+    from_scan: u32,
+    delay: u32,
+}
+
 impl AttachCandidate {
-    pub fn from_scan_result_from_scan_with_delay(
+    pub fn from_scan_result_with_config(
         scan_result: CellScanResult,
-        from_scan: u32,
-        delay: u32,
+        config: AttachCandidateConfig,
     ) -> Self {
         let mut ac = Self::from(scan_result);
-        ac.from_scan = from_scan;
-        ac.delay = delay;
+        ac.from_scan = config.from_scan;
+        ac.delay = config.delay;
         ac
     }
 }
