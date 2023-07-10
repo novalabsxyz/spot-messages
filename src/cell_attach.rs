@@ -146,8 +146,8 @@ impl From<CellScanResult> for AttachCandidate {
 }
 
 pub struct AttachCandidateConfig {
-    from_scan: u32,
-    delay: u32,
+    pub from_scan: u32,
+    pub delay: u32,
 }
 
 impl AttachCandidate {
