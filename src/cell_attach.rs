@@ -59,6 +59,12 @@ impl From<CellAttach> for LoraPayload {
     }
 }
 
+impl From<CellAttach> for Payload {
+    fn from(attach: CellAttach) -> Self {
+        Payload::CellAttach(attach)
+    }
+}
+
 impl From<LoraPayload> for CellAttach {
     fn from(p: LoraPayload) -> Self {
         use latlon::Unit;

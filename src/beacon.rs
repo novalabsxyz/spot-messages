@@ -1,6 +1,6 @@
 use super::{
     gps::{altitude, hdop, latlon, speed, time, Gps},
-    mapper_msg_with_payload, Deserialize, Error, Result, Serialize,
+    mapper_msg_with_payload, Deserialize, Error, Payload, Result, Serialize,
 };
 use helium_proto::MapperBeaconV1;
 use modular_bitfield_msb::{bitfield, specifiers::*};
@@ -86,6 +86,12 @@ impl TryFrom<helium_proto::MapperBeacon> for Beacon {
             Some(helium_proto::mapper_beacon::Version::BeaconV1(v1)) => v1.try_into(),
             None => Err(Error::ProtoHasNone("version")),
         }
+    }
+}
+
+impl From<Beacon> for Payload {
+    fn from(attach: Beacon) -> Self {
+        Payload::Beacon(attach)
     }
 }
 
