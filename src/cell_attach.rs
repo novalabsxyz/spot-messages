@@ -12,13 +12,26 @@ pub struct CellAttach {
     pub result: CellAttachResult,
 }
 
+const PAYLOAD_SIZE: usize = 32;
+
 impl CellAttach {
-    pub fn into_bytes(self) -> [u8; 32] {
+    pub fn into_lora_bytes(self) -> [u8; PAYLOAD_SIZE] {
         let lora_payload: LoraPayload = self.into();
         lora_payload.into_bytes()
     }
 
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+    pub fn from_lora_vec(vec: Vec<u8>) -> Result<Self> {
+        let size = vec.len();
+        let bytes = vec
+            .try_into()
+            .map_err(|_| Error::InvalidVecForParsingLoraPayload {
+                payload: "CellAttach",
+                size,
+            })?;
+        Ok(Self::from_lora_bytes(bytes))
+    }
+
+    pub fn from_lora_bytes(bytes: [u8; PAYLOAD_SIZE]) -> Self {
         let lora_payload = LoraPayload::from_bytes(bytes);
         lora_payload.into()
     }
@@ -312,7 +325,7 @@ mod test {
 
         let lora_payload = LoraPayload::from(payload.clone());
         let bytes = lora_payload.into_bytes();
-        let payload_returned = CellAttach::from_bytes(bytes);
+        let payload_returned = CellAttach::from_lora_bytes(bytes);
         assert_eq!(payload, payload_returned);
     }
 

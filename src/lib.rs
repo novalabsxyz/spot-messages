@@ -71,6 +71,8 @@ pub enum Error {
     HeliumProtoEncode(#[from] helium_proto::EncodeError),
     #[error("key error: {0}")]
     Key(String), // String avoids making all of these API require the KeyTrait definition
+    #[error("invalid vec size for parsing payload \"{payload}\": {size}")]
+    InvalidVecForParsingLoraPayload { payload: &'static str, size: usize },
 }
 
 impl TryFrom<mapper_payload::Message> for Payload {
