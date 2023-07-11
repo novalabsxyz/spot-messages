@@ -88,15 +88,13 @@ impl TryFrom<mapper_payload::Message> for Payload {
     }
 }
 
-impl TryFrom<Payload> for mapper_payload::Message {
-    type Error = Error;
-
-    fn try_from(payload: Payload) -> std::result::Result<Self, Self::Error> {
+impl From<Payload> for mapper_payload::Message {
+    fn from(payload: Payload) -> Self {
         match payload {
-            Payload::Beacon(beacon) => Ok(beacon.into()),
-            Payload::CellAttach(attach) => Ok(attach.into()),
-            Payload::CellScan(scan) => Ok(scan.into()),
-            Payload::Gps(gps) => Ok(gps.into()),
+            Payload::Beacon(beacon) => beacon.into(),
+            Payload::CellAttach(attach) => attach.into(),
+            Payload::CellScan(scan) => scan.into(),
+            Payload::Gps(gps) => gps.into(),
         }
     }
 }
@@ -138,7 +136,7 @@ impl Message {
     ) -> std::result::Result<Self, Error> {
         let mut payload_bytes = Vec::new();
         let payload_proto = helium_proto::MapperPayload {
-            message: Some(payload.clone().try_into()?),
+            message: Some(payload.clone().into()),
         };
         payload_proto.encode(&mut payload_bytes)?;
         let signature = key
