@@ -18,6 +18,9 @@ pub use cell_scan::*;
 
 pub mod keys;
 
+mod lora_gw;
+pub use lora_gw::*;
+
 mod ports;
 pub use ports::*;
 
@@ -39,7 +42,7 @@ pub struct Message {
     pub payload: Payload,
     pub signature: Vec<u8>,
     pub pubkey: PublicKey,
-    pub hotspots: Vec<PublicKey>,
+    pub lora_gws: Vec<LoraGw>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -49,7 +52,7 @@ pub enum Error {
     #[error("unexpected attach result str: {0}")]
     UnexpectedAttachResultStr(String),
     #[error("h3o: {0}")]
-    H3o(#[from] h3o::error::InvalidLatLng),
+    H3oInvalidLatLong(#[from] h3o::error::InvalidLatLng),
     #[error("invalid attach result value: {value}")]
     InvalidAttachResultInt { value: i32 },
     #[error("proto should have some but has none for field \"{0}\"")]
@@ -73,6 +76,10 @@ pub enum Error {
     Key(String), // String avoids making all of these API require the KeyTrait definition
     #[error("invalid vec size for parsing payload \"{payload}\": {size}")]
     InvalidVecForParsingLoraPayload { payload: &'static str, size: usize },
+    #[error("h3o: {0}")]
+    H3oInvalidCellIndex(#[from] h3o::error::InvalidCellIndex),
+    #[error("invalid datarate: {0}")]
+    InvalidDatarate(i32),
 }
 
 impl TryFrom<mapper_payload::Message> for Payload {
@@ -119,10 +126,10 @@ impl From<Message> for MapperMsg {
                 }),
                 signature: value.signature,
                 pubkey: value.pubkey.to_vec(),
-                hotspots: value
-                    .hotspots
-                    .iter()
-                    .map(|pubkey| pubkey.to_vec())
+                lora_gws: value
+                    .lora_gws
+                    .into_iter()
+                    .map(|lora_gw| lora_gw.into())
                     .collect(),
             })),
         }
@@ -147,7 +154,7 @@ impl Message {
             signature,
             pubkey: key.pubkey().map_err(|e| Error::Key(e.to_string()))?,
             // this field is left blank because it is not used in the mapper
-            hotspots: vec![],
+            lora_gws: vec![],
         })
     }
 
@@ -185,13 +192,10 @@ impl Message {
             payload,
             signature: value.signature,
             pubkey,
-            hotspots: value
-                .hotspots
+            lora_gws: value
+                .lora_gws
                 .into_iter()
-                .map(|v| {
-                    PublicKey::from_bytes(&v)
-                        .map_err(|error| Error::PubkeyParse { error, bytes: v })
-                })
+                .map(|v| v.try_into())
                 .collect::<Result<_>>()?,
         })
     }
@@ -217,7 +221,7 @@ fn mapper_msg_with_payload(payload: mapper_payload::Message) -> MapperMsg {
                 message: Some(payload),
             }),
             signature: vec![0; 64],
-            hotspots: vec![],
+            lora_gws: vec![],
         })),
     }
 }
