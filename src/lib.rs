@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use helium_proto::{mapper_payload, MapperMsg, MapperMsgV1};
 
-pub use helium_crypto::public_key::PublicKey;
-use helium_crypto::Verify;
+pub use helium_crypto;
+use helium_crypto::{public_key::PublicKey, Verify};
 
 mod cell_attach;
 pub use cell_attach::*;
@@ -71,7 +71,7 @@ pub enum Error {
         signature: Vec<u8>,
     },
     #[error("helium proto encode error: {0}")]
-    HeliumProtoEncode(#[from] helium_proto::EncodeError),
+    HeliumProtoEncode(#[from] EncodeError),
     #[error("key error: {0}")]
     Key(String), // String avoids making all of these API require the KeyTrait definition
     #[error("invalid vec size for parsing payload \"{payload}\": {size}")]
