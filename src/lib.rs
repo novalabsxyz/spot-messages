@@ -21,6 +21,9 @@ pub mod keys;
 mod lora_gw;
 pub use lora_gw::*;
 
+mod lora_payload;
+pub use lora_payload::IntoFromLoraPayload;
+
 mod ports;
 pub use ports::*;
 
