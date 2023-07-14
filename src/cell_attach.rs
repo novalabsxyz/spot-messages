@@ -361,7 +361,7 @@ mod test {
             .into_lora_bytes_with_signature(&key)
             .unwrap();
         let payload_returned = CellAttach::from_lora_vec_with_verified_signature(
-            key.pubkey().unwrap(),
+            &key.pubkey().unwrap(),
             bytes.to_vec(),
         )
         .unwrap();

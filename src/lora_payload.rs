@@ -12,7 +12,7 @@ pub trait IntoFromLoraPayload<const N: usize> {
         Ok(bytes)
     }
 
-    fn from_lora_vec_with_verified_signature(pubkey: PublicKey, vec: Vec<u8>) -> Result<Self>
+    fn from_lora_vec_with_verified_signature(pubkey: &PublicKey, vec: Vec<u8>) -> Result<Self>
     where
         Self: Sized,
     {
