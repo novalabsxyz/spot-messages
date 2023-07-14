@@ -14,26 +14,17 @@ pub struct CellAttach {
 
 const PAYLOAD_SIZE: usize = 32;
 
-impl CellAttach {
-    pub fn into_lora_bytes(self) -> [u8; PAYLOAD_SIZE] {
+impl IntoFromLoraPayload<PAYLOAD_SIZE> for CellAttach {
+    fn into_lora_bytes(self) -> [u8; PAYLOAD_SIZE] {
         let lora_payload: LoraPayload = self.into();
         lora_payload.into_bytes()
     }
-
-    pub fn from_lora_vec(vec: Vec<u8>) -> Result<Self> {
-        let size = vec.len();
-        let bytes = vec
-            .try_into()
-            .map_err(|_| Error::InvalidVecForParsingLoraPayload {
-                payload: "CellAttach",
-                size,
-            })?;
-        Ok(Self::from_lora_bytes(bytes))
-    }
-
-    pub fn from_lora_bytes(bytes: [u8; PAYLOAD_SIZE]) -> Self {
+    fn from_lora_bytes(bytes: [u8; PAYLOAD_SIZE]) -> Self {
         let lora_payload = LoraPayload::from_bytes(bytes);
         lora_payload.into()
+    }
+    fn label() -> &'static str {
+        "CellAttach"
     }
 }
 
@@ -352,5 +343,28 @@ mod test {
             .try_into()
             .unwrap();
         assert_eq!(attach, attach_returned);
+    }
+
+    #[test]
+    fn payload_roundtrip_lora_signed() {
+        use crate::keys::{self, KeyTrait};
+        let key = keys::file::File::create_key().unwrap();
+
+        let payload = CellAttach {
+            attach_counter: 5,
+            gps: Gps::rounded(),
+            candidate: AttachCandidate::from(CellScanResult::random()),
+            result: CellAttachResult::Connected,
+        };
+        let bytes = payload
+            .clone()
+            .into_lora_bytes_with_signature(&key)
+            .unwrap();
+        let payload_returned = CellAttach::from_lora_vec_with_verified_signature(
+            key.pubkey().unwrap(),
+            bytes.to_vec(),
+        )
+        .unwrap();
+        assert_eq!(payload, payload_returned);
     }
 }

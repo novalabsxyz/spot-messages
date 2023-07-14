@@ -1,6 +1,6 @@
 use super::{
     gps::{altitude, hdop, latlon, speed, time, Gps},
-    mapper_msg_with_payload, Deserialize, Error, Payload, Result, Serialize,
+    mapper_msg_with_payload, Deserialize, Error, IntoFromLoraPayload, Payload, Result, Serialize,
 };
 use helium_proto::MapperBeaconV1;
 use modular_bitfield_msb::{bitfield, specifiers::*};
@@ -17,26 +17,21 @@ impl Beacon {
     pub fn new(gps: Gps, signature: Vec<u8>) -> Self {
         Self { gps, signature }
     }
+}
 
-    pub fn into_lora_bytes(self) -> [u8; PAYLOAD_SIZE] {
+impl IntoFromLoraPayload<PAYLOAD_SIZE> for Beacon {
+    fn into_lora_bytes(self) -> [u8; PAYLOAD_SIZE] {
         let lora_payload: LoraPayload = self.into();
         lora_payload.into_bytes()
     }
 
-    pub fn from_lora_vec(vec: Vec<u8>) -> Result<Self> {
-        let size = vec.len();
-        let bytes = vec
-            .try_into()
-            .map_err(|_| Error::InvalidVecForParsingLoraPayload {
-                payload: "Beacon",
-                size,
-            })?;
-        Ok(Self::from_lora_bytes(bytes))
-    }
-
-    pub fn from_lora_bytes(bytes: [u8; PAYLOAD_SIZE]) -> Self {
+    fn from_lora_bytes(bytes: [u8; PAYLOAD_SIZE]) -> Self {
         let lora_payload = LoraPayload::from_bytes(bytes);
         lora_payload.into()
+    }
+
+    fn label() -> &'static str {
+        "Beacon"
     }
 }
 
@@ -183,6 +178,36 @@ mod test {
         let lora_payload = LoraPayload::from(payload.clone());
         let bytes = lora_payload.into_bytes();
         let payload_returned = Beacon::from_lora_bytes(bytes);
+        assert_eq!(payload, payload_returned);
+    }
+
+    #[test]
+    fn payload_roundtrip_lora_signed() {
+        use crate::keys::{self, KeyTrait};
+        let key = keys::file::File::create_key().unwrap();
+
+        use chrono::TimeZone;
+        let timestamp = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 5).unwrap();
+
+        let payload = Beacon {
+            gps: Gps {
+                timestamp,
+                lat: Decimal::new(-50_12345, 5),
+                lon: Decimal::new(120_12345, 5),
+                hdop: Decimal::new(10_05, 2),
+                altitude: Decimal::new(10_25, 2),
+                num_sats: 5,
+                speed: Decimal::new(50_50, 2),
+            },
+            signature: vec![0xAB, 0xCD],
+        };
+        let bytes = payload
+            .clone()
+            .into_lora_bytes_with_signature(&key)
+            .unwrap();
+        let payload_returned =
+            Beacon::from_lora_vec_with_verified_signature(key.pubkey().unwrap(), bytes.to_vec())
+                .unwrap();
         assert_eq!(payload, payload_returned);
     }
 }
