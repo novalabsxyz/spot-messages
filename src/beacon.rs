@@ -206,7 +206,7 @@ mod test {
             .into_lora_bytes_with_signature(&key)
             .unwrap();
         let payload_returned =
-            Beacon::from_lora_vec_with_verified_signature(key.pubkey().unwrap(), bytes.to_vec())
+            Beacon::from_lora_vec_with_verified_signature(&key.pubkey().unwrap(), bytes.to_vec())
                 .unwrap();
         assert_eq!(payload, payload_returned);
     }
