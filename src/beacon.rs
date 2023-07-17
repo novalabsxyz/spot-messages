@@ -7,8 +7,8 @@ use modular_bitfield_msb::{bitfield, specifiers::*};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Beacon {
-    gps: Gps,
-    signature: Vec<u8>,
+    pub gps: Gps,
+    pub signature: Vec<u8>,
 }
 
 const PAYLOAD_SIZE: usize = 17;
