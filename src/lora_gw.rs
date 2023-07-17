@@ -50,12 +50,12 @@ pub mod snr {
 
     const SNR_PROTO_SCALAR: Decimal = Decimal::from_parts(1, 0, 0, false, 1);
 
-    pub fn to_proto_units(snr: Decimal) -> u32 {
+    pub fn to_proto_units(snr: Decimal) -> i32 {
         let scaled = snr.checked_div(SNR_PROTO_SCALAR).unwrap().round();
-        scaled.to_string().parse::<u32>().unwrap()
+        scaled.to_string().parse::<i32>().unwrap()
     }
 
-    pub fn from_proto_units(snr: u32) -> Decimal {
+    pub fn from_proto_units(snr: i32) -> Decimal {
         let snr_unscaled = Decimal::new(snr.into(), 0);
         snr_unscaled.checked_mul(SNR_PROTO_SCALAR).unwrap()
     }
