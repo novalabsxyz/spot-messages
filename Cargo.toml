@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0", features = ["serde"] }
-helium-crypto = "0.6"
+helium-crypto = "0.7"
 helium-proto = { git = "https://github.com/helium/proto", branch = "lthiery/mapper-service", features = ["services"] }
 h3o = "0"
 modular-bitfield-msb = "0"
