@@ -6,9 +6,10 @@ pub trait IntoFromLoraPayload<const N: usize> {
         Self: Sized,
     {
         let bytes = self.into_lora_bytes();
-        let mut signature = key.sign(&bytes).map_err(|e| Error::Key(e.to_string()))?;
+        let signature = key.sign(&bytes).map_err(|e| Error::Key(e.to_string()))?;
+        // remove the first two bytes because we can infer them later
         let mut bytes = bytes.to_vec();
-        bytes.append(&mut signature);
+        bytes.append(&mut signature[2..].to_vec());
         Ok(bytes)
     }
 
@@ -31,9 +32,12 @@ pub trait IntoFromLoraPayload<const N: usize> {
                     size,
                 })?;
 
-        let signature = &vec[N..];
+        let signature_bytes = &vec[N..];
+        // add back in the first two bytes of the signature
+        let mut signature = vec![0x30, signature_bytes.len() as u8];
+        signature.append(&mut signature_bytes.to_vec());
         pubkey
-            .verify(&bytes, signature)
+            .verify(&bytes, &signature)
             .map_err(|_| Error::SignatureVerification {
                 pubkey: Box::new(pubkey.clone()),
                 msg: bytes.to_vec(),
