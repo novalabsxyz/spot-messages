@@ -111,6 +111,7 @@ impl From<LoraPayload> for Beacon {
 impl From<Beacon> for LoraPayload {
     fn from(p: Beacon) -> Self {
         use latlon::Degrees;
+        let sig_len = p.signature.len();
         LoraPayload::new()
             .with_time(time::to_lora_units(p.gps.timestamp))
             .with_lat(latlon::to_lora_units(Degrees::Lat(p.gps.lat)))
@@ -119,7 +120,10 @@ impl From<Beacon> for LoraPayload {
             .with_alt(altitude::to_lora_units(p.gps.altitude) as u16)
             .with_speed(speed::to_lora_units(p.gps.speed) as u16)
             .with_num_sats(p.gps.num_sats)
-            .with_signature(u16::from_be_bytes([p.signature[0], p.signature[1]]))
+            .with_signature(u16::from_be_bytes([
+                p.signature[sig_len - 2],
+                p.signature[sig_len - 1],
+            ]))
     }
 }
 
